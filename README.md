@@ -10,6 +10,8 @@ curl -fsSL https://raw.githubusercontent.com/joshjones-codes/terminal-setup/main
 curl -fsSL https://raw.githubusercontent.com/joshjones-codes/terminal-setup/main/bootstrap.sh | bash -s -- --dry-run
 ```
 
+Tool descriptions and examples: [docs/TOOLS.md](docs/TOOLS.md).
+
 Or clone it yourself and run `./install.sh [--dry-run] [--no-install]`.
 
 | flag | effect |
@@ -44,7 +46,7 @@ One block to `~/.zshrc` and/or `~/.bashrc` (only files that already exist; if ne
 ```
 
 ## Layout
-`bootstrap.sh` (clone + run) · `install.sh` (install tools, append source line) · `shell/aliases.sh` · `packages/tools.txt`
+`bootstrap.sh` (clone + run) · `install.sh` (install tools, append source line) · `shell/aliases.sh` · `packages/tools.txt` · `docs/TOOLS.md`
 
 ## Remove
 Delete the three-line block from your rc file. Nothing else was changed.
