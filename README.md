@@ -1,21 +1,33 @@
-# eza-setup
+# dotfiles
 
-Installs [eza](https://github.com/eza-community/eza) if it's missing and aliases `ls`, `la`, `ll` to it in zsh and bash.
+Portable terminal setup. Safe to run on a work machine: it only ever **appends** to your shell rc files and never rewrites or deletes existing content.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/<user>/eza-setup/main/install.sh | bash
+git clone https://github.com/joshjones-codes/dotfiles.git ~/Code/dotfiles
+~/Code/dotfiles/install.sh
 ```
 
-Or clone and run `./install.sh`.
-
-- macOS: `brew install eza`
-- Linux: apt (via the eza project's deb repo), dnf, pacman, zypper, or cargo, per [eza's INSTALL.md](https://github.com/eza-community/eza/blob/main/INSTALL.md)
-- Aliases live in a marked block in `~/.zshrc` and `~/.bashrc`; re-running replaces the block, never duplicates it.
-
-| alias | expands to |
+| flag | effect |
 |---|---|
-| `ls` | `eza --group-directories-first` |
-| `la` | `eza -la --group-directories-first` |
-| `ll` | `eza -l --group-directories-first` |
+| `--dry-run` | print what would happen, change nothing |
+| `--no-install` | skip package installs (no sudo, no third-party repos); only wire up aliases |
 
-To remove: delete the block between `# >>> eza-setup >>>` and `# <<< eza-setup <<<`.
+## What it does
+1. Installs each tool in `packages/tools.txt` if it's missing (macOS: brew; Linux: apt/dnf/pacman/zypper/cargo). On Debian/Ubuntu, eza comes from the eza project's apt repo, which adds a third-party source. Use `--no-install` to avoid that.
+2. Appends one block to `~/.zshrc` and/or `~/.bashrc` (only files that already exist; if neither exists, creates the one matching `$SHELL`):
+   ```sh
+   # >>> dotfiles (joshjones-codes/dotfiles) >>>
+   [ -f "<clone>/shell/aliases.sh" ] && . "<clone>/shell/aliases.sh"
+   # <<< dotfiles <<<
+   ```
+3. Re-running does nothing if that block is already present.
+
+## Layout
+- `shell/aliases.sh`: portable aliases (`ls`, `la`, `ll` via eza, only if eza is installed)
+- `packages/tools.txt`: tools to install, one per line
+- `install.sh`: bootstrap
+
+## Remove
+Delete the three-line block from your rc file. Nothing else was changed.
+
+Note: the aliases shadow `ls` in new shells, so they override any existing `ls` alias that's defined earlier in the same rc file.

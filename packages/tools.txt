@@ -1,0 +1,2 @@
+# one tool per line; the command name must match the package name
+eza

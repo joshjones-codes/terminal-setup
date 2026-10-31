@@ -1,81 +1,86 @@
 #!/usr/bin/env bash
-# Install eza if missing, then alias ls/la/ll to it in zsh and bash.
-# Safe to re-run: the alias block is replaced in place, never duplicated.
+# Append-only bootstrap: installs missing tools, then appends ONE source line
+# to your shell rc file(s). Never rewrites or removes existing content.
+#   ./install.sh                run everything
+#   ./install.sh --no-install   only wire up the aliases (no packages, no sudo)
+#   ./install.sh --dry-run      print what would happen, change nothing
 set -euo pipefail
 
-BEGIN="# >>> eza-setup >>>"
-END="# <<< eza-setup <<<"
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALIASES="$DOTFILES_DIR/shell/aliases.sh"
+BEGIN="# >>> dotfiles (joshjones-codes/dotfiles) >>>"
+END="# <<< dotfiles <<<"
+INSTALL=1
+DRY=0
 
 log() { printf '==> %s\n' "$*"; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
-
-# Run a command as root if we aren't already.
 as_root() { if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi; }
 
-install_eza() {
+for arg in "$@"; do
+  case "$arg" in
+    --no-install) INSTALL=0 ;;
+    --dry-run)    DRY=1 ;;
+    -h|--help)    sed -n '2,6p' "$0"; exit 0 ;;
+    *) die "unknown option: $arg" ;;
+  esac
+done
+
+install_tool() {
+  local tool="$1"
+  if command -v "$tool" >/dev/null 2>&1; then log "$tool already installed"; return; fi
+  if [ "$DRY" -eq 1 ]; then log "[dry-run] would install $tool"; return; fi
+  log "installing $tool"
   case "$(uname -s)" in
     Darwin)
-      command -v brew >/dev/null || die "Homebrew not found. Install it from https://brew.sh then re-run."
-      brew install eza
-      ;;
+      command -v brew >/dev/null || die "Homebrew not found (https://brew.sh)"
+      brew install "$tool" ;;
     Linux)
       if command -v apt-get >/dev/null; then
-        # Official instructions: https://github.com/eza-community/eza/blob/main/INSTALL.md
+        if [ "$tool" = eza ]; then
+          # https://github.com/eza-community/eza/blob/main/INSTALL.md
+          as_root apt-get update
+          as_root apt-get install -y gpg wget ca-certificates
+          as_root mkdir -p /etc/apt/keyrings
+          wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
+            | as_root gpg --dearmor --yes -o /etc/apt/keyrings/gierens.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+            | as_root tee /etc/apt/sources.list.d/gierens.list >/dev/null
+          as_root chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+        fi
         as_root apt-get update
-        as_root apt-get install -y gpg wget ca-certificates
-        as_root mkdir -p /etc/apt/keyrings
-        wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
-          | as_root gpg --dearmor --yes -o /etc/apt/keyrings/gierens.gpg
-        echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
-          | as_root tee /etc/apt/sources.list.d/gierens.list >/dev/null
-        as_root chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
-        as_root apt-get update
-        as_root apt-get install -y eza
-      elif command -v dnf >/dev/null;    then as_root dnf install -y eza
-      elif command -v pacman >/dev/null; then as_root pacman -S --noconfirm eza
-      elif command -v zypper >/dev/null; then as_root zypper --non-interactive install eza
-      elif command -v cargo >/dev/null;  then cargo install eza
-      else die "No supported package manager found. See https://github.com/eza-community/eza/blob/main/INSTALL.md"
-      fi
-      ;;
-    *) die "Unsupported OS: $(uname -s)" ;;
+        as_root apt-get install -y "$tool"
+      elif command -v dnf >/dev/null;    then as_root dnf install -y "$tool"
+      elif command -v pacman >/dev/null; then as_root pacman -S --noconfirm "$tool"
+      elif command -v zypper >/dev/null; then as_root zypper --non-interactive install "$tool"
+      elif command -v cargo >/dev/null;  then cargo install "$tool"
+      else die "no supported package manager for $tool"
+      fi ;;
+    *) die "unsupported OS: $(uname -s)" ;;
   esac
 }
 
-# Replace (or append) the managed alias block in an rc file.
-write_block() {
-  local rc="$1" tmp
-  [ -f "$rc" ] || touch "$rc"
-  tmp="$(mktemp)"
-  # Drop any previous block, then append the current one.
-  awk -v b="$BEGIN" -v e="$END" '
-    $0 == b {skip=1; next}
-    $0 == e {skip=0; next}
-    !skip
-  ' "$rc" > "$tmp"
-  cat >> "$tmp" <<BLOCK
-$BEGIN
-if command -v eza >/dev/null 2>&1; then
-  alias ls='eza --group-directories-first'
-  alias la='eza -la --group-directories-first'
-  alias ll='eza -l --group-directories-first'
-fi
-$END
-BLOCK
-  cat "$tmp" > "$rc"   # preserve rc file permissions/symlinks
-  rm -f "$tmp"
-  log "updated $rc"
+# Append only. If our marker is already present, do nothing at all.
+append_source() {
+  local rc="$1"
+  if grep -qF "$BEGIN" "$rc" 2>/dev/null; then log "$rc already configured, left untouched"; return; fi
+  if [ "$DRY" -eq 1 ]; then log "[dry-run] would append source line to $rc"; return; fi
+  printf '\n%s\n[ -f "%s" ] && . "%s"\n%s\n' "$BEGIN" "$ALIASES" "$ALIASES" "$END" >> "$rc"
+  log "appended to $rc"
 }
 
-if command -v eza >/dev/null 2>&1; then
-  log "eza already installed: $(command -v eza)"
-else
-  log "installing eza"
-  install_eza
-  command -v eza >/dev/null 2>&1 || die "eza still not on PATH after install (open a new shell or check ~/.cargo/bin)"
+if [ "$INSTALL" -eq 1 ]; then
+  while IFS= read -r tool; do
+    case "$tool" in ''|'#'*) continue ;; esac
+    install_tool "$tool"
+  done < "$DOTFILES_DIR/packages/tools.txt"
 fi
 
-write_block "$HOME/.zshrc"
-write_block "$HOME/.bashrc"
+targets=()
+for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do [ -f "$rc" ] && targets+=("$rc"); done
+if [ "${#targets[@]}" -eq 0 ]; then
+  case "${SHELL:-}" in */zsh) targets=("$HOME/.zshrc") ;; *) targets=("$HOME/.bashrc") ;; esac
+fi
+for rc in "${targets[@]}"; do append_source "$rc"; done
 
-log "done. Open a new shell (or: source ~/.zshrc) to use ls/la/ll via eza."
+log "done. Open a new shell to pick up the aliases."
