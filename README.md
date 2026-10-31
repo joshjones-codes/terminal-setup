@@ -1,10 +1,10 @@
-# dotfiles
+# terminal-setup
 
 Portable terminal setup. Safe to run on a work machine: it only ever **appends** to your shell rc files and never rewrites or deletes existing content.
 
 ```sh
-git clone https://github.com/joshjones-codes/dotfiles.git ~/Code/dotfiles
-~/Code/dotfiles/install.sh
+git clone https://github.com/joshjones-codes/terminal-setup.git ~/Code/terminal-setup
+~/Code/terminal-setup/install.sh
 ```
 
 | flag | effect |
@@ -16,9 +16,9 @@ git clone https://github.com/joshjones-codes/dotfiles.git ~/Code/dotfiles
 1. Installs each tool in `packages/tools.txt` if it's missing (macOS: brew; Linux: apt/dnf/pacman/zypper/cargo). On Debian/Ubuntu, eza comes from the eza project's apt repo, which adds a third-party source. Use `--no-install` to avoid that.
 2. Appends one block to `~/.zshrc` and/or `~/.bashrc` (only files that already exist; if neither exists, creates the one matching `$SHELL`):
    ```sh
-   # >>> dotfiles (joshjones-codes/dotfiles) >>>
+   # >>> terminal-setup (joshjones-codes/terminal-setup) >>>
    [ -f "<clone>/shell/aliases.sh" ] && . "<clone>/shell/aliases.sh"
-   # <<< dotfiles <<<
+   # <<< terminal-setup <<<
    ```
 3. Re-running does nothing if that block is already present.
 

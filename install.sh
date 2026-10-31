@@ -8,8 +8,8 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALIASES="$DOTFILES_DIR/shell/aliases.sh"
-BEGIN="# >>> dotfiles (joshjones-codes/dotfiles) >>>"
-END="# <<< dotfiles <<<"
+BEGIN="# >>> terminal-setup (joshjones-codes/terminal-setup) >>>"
+END="# <<< terminal-setup <<<"
 INSTALL=1
 DRY=0
 
