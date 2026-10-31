@@ -26,15 +26,26 @@ for arg in "$@"; do
   esac
 done
 
+have_tool() {
+  case "$1" in
+    bat) command -v bat >/dev/null 2>&1 || command -v batcat >/dev/null 2>&1 ;;
+    fd)  command -v fd  >/dev/null 2>&1 || command -v fdfind >/dev/null 2>&1 ;;
+    *)   command -v "$1" >/dev/null 2>&1 ;;
+  esac
+}
+
+# Package names that differ per manager (brew/dnf/pacman use $pkg as-is).
+apt_pkg() { case "$1" in fd) echo fd-find ;; *) echo "$1" ;; esac; }
+
 install_tool() {
-  local tool="$1"
-  if command -v "$tool" >/dev/null 2>&1; then log "$tool already installed"; return; fi
-  if [ "$DRY" -eq 1 ]; then log "[dry-run] would install $tool"; return; fi
+  local tool="$1" pkg="${2:-$1}"
+  if have_tool "$tool"; then log "$tool already installed"; return; fi
+  if [ "$DRY" -eq 1 ]; then log "[dry-run] would install $tool (package: $pkg)"; return; fi
   log "installing $tool"
   case "$(uname -s)" in
     Darwin)
       command -v brew >/dev/null || die "Homebrew not found (https://brew.sh)"
-      brew install "$tool" ;;
+      brew install "$pkg" ;;
     Linux)
       if command -v apt-get >/dev/null; then
         if [ "$tool" = eza ]; then
@@ -49,11 +60,11 @@ install_tool() {
           as_root chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
         fi
         as_root apt-get update
-        as_root apt-get install -y "$tool"
-      elif command -v dnf >/dev/null;    then as_root dnf install -y "$tool"
-      elif command -v pacman >/dev/null; then as_root pacman -S --noconfirm "$tool"
-      elif command -v zypper >/dev/null; then as_root zypper --non-interactive install "$tool"
-      elif command -v cargo >/dev/null;  then cargo install "$tool"
+        as_root apt-get install -y "$(apt_pkg "$pkg")"
+      elif command -v dnf >/dev/null;    then as_root dnf install -y "$pkg"
+      elif command -v pacman >/dev/null; then as_root pacman -S --noconfirm "$pkg"
+      elif command -v zypper >/dev/null; then as_root zypper --non-interactive install "$pkg"
+      elif command -v cargo >/dev/null;  then cargo install "$pkg"
       else die "no supported package manager for $tool"
       fi ;;
     *) die "unsupported OS: $(uname -s)" ;;
@@ -70,9 +81,9 @@ append_source() {
 }
 
 if [ "$INSTALL" -eq 1 ]; then
-  while IFS= read -r tool; do
+  while read -r tool pkg _; do
     case "$tool" in ''|'#'*) continue ;; esac
-    install_tool "$tool"
+    install_tool "$tool" "${pkg:-$tool}"
   done < "$DOTFILES_DIR/packages/tools.txt"
 fi
 

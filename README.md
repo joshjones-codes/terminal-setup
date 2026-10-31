@@ -1,33 +1,50 @@
 # terminal-setup
 
-Portable terminal setup. Safe to run on a work machine: it only ever **appends** to your shell rc files and never rewrites or deletes existing content.
+Portable terminal setup. Safe on a work machine: it only **appends** to your shell rc files and never rewrites or deletes existing content.
 
 ```sh
-git clone https://github.com/joshjones-codes/terminal-setup.git ~/Code/terminal-setup
-~/Code/terminal-setup/install.sh
+# one-liner (clones to ~/Code/terminal-setup, then runs install.sh)
+curl -fsSL https://raw.githubusercontent.com/joshjones-codes/terminal-setup/main/bootstrap.sh | bash
+
+# preview first, changing nothing
+curl -fsSL https://raw.githubusercontent.com/joshjones-codes/terminal-setup/main/bootstrap.sh | bash -s -- --dry-run
 ```
+
+Or clone it yourself and run `./install.sh [--dry-run] [--no-install]`.
 
 | flag | effect |
 |---|---|
 | `--dry-run` | print what would happen, change nothing |
-| `--no-install` | skip package installs (no sudo, no third-party repos); only wire up aliases |
+| `--no-install` | skip package installs (no sudo, no third-party apt repo); only wire up aliases |
 
-## What it does
-1. Installs each tool in `packages/tools.txt` if it's missing (macOS: brew; Linux: apt/dnf/pacman/zypper/cargo). On Debian/Ubuntu, eza comes from the eza project's apt repo, which adds a third-party source. Use `--no-install` to avoid that.
-2. Appends one block to `~/.zshrc` and/or `~/.bashrc` (only files that already exist; if neither exists, creates the one matching `$SHELL`):
-   ```sh
-   # >>> terminal-setup (joshjones-codes/terminal-setup) >>>
-   [ -f "<clone>/shell/aliases.sh" ] && . "<clone>/shell/aliases.sh"
-   # <<< terminal-setup <<<
-   ```
-3. Re-running does nothing if that block is already present.
+Set `TERMINAL_SETUP_DIR` to clone somewhere other than `~/Code/terminal-setup`.
+
+## Tools installed (`packages/tools.txt`)
+eza, bat, ripgrep, fd, fzf, zoxide, btop, jq. macOS uses brew; Linux uses apt, dnf, pacman, zypper or cargo. On Debian/Ubuntu, eza comes from the eza project's apt repo, which adds a third-party source (skip with `--no-install`).
+
+## Defaults replaced (interactive shells only)
+| command | becomes |
+|---|---|
+| `ls`, `la`, `ll` | `eza` (dirs first; `la` = `-la`, `ll` = `-l`) |
+| `tree` | `eza --tree` |
+| `cat` | `bat --paging=never --style=plain` |
+| `top` | `btop` |
+| `cd` | zoxide (learns directories; `cd path` and `cd -` still work) |
+
+Scripts are unaffected: the aliases load only in interactive shells. Bypass once with `\cat file` or `command cat file`.
+
+**Not replaced:** `grep` and `find`. `rg` and `fd` have different flags (`rg -E` is an encoding, `fd` has no `-name`), so aliasing them breaks muscle memory. Opt-in lines are commented at the bottom of `shell/aliases.sh`.
+
+## What gets appended
+One block to `~/.zshrc` and/or `~/.bashrc` (only files that already exist; if neither exists, creates the one matching `$SHELL`). Re-running does nothing if the block is present.
+```sh
+# >>> terminal-setup (joshjones-codes/terminal-setup) >>>
+[ -f "<clone>/shell/aliases.sh" ] && . "<clone>/shell/aliases.sh"
+# <<< terminal-setup <<<
+```
 
 ## Layout
-- `shell/aliases.sh`: portable aliases (`ls`, `la`, `ll` via eza, only if eza is installed)
-- `packages/tools.txt`: tools to install, one per line
-- `install.sh`: bootstrap
+`bootstrap.sh` (clone + run) · `install.sh` (install tools, append source line) · `shell/aliases.sh` · `packages/tools.txt`
 
 ## Remove
 Delete the three-line block from your rc file. Nothing else was changed.
-
-Note: the aliases shadow `ls` in new shells, so they override any existing `ls` alias that's defined earlier in the same rc file.
